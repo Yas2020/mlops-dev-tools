@@ -31,6 +31,7 @@ Parameters:
     Description: "CodeStar Arn for GitHub Connection"
     Default: arn:aws:codestar-connections:ca-central-1:253226449123:connection/bd250053-a31b-437e-ba66-b5f9eb1c471f
 
+
 Resources:
 
   ModelGroupLayer:
@@ -420,7 +421,7 @@ Resources:
                 - Name: ModelSourceOutput
               Configuration:
                 BranchName: main
-                RepositoryName: !ImportValue MLOpsRepoName
+                RepositoryName: "Yas2020/mlops-dev-tools"
                 ConnectionArn: !Sub ${CodeStarArn}
                 PollForSourceChanges: false
               RunOrder: 1
@@ -434,7 +435,7 @@ Resources:
                 - Name: EtlSourceOutput
               Configuration:
                 BranchName: etl
-                RepositoryName: !ImportValue MLOpsRepoName
+                RepositoryName: "Yas2020/mlops-dev-tools"
                 ConnectionArn: !Sub ${CodeStarArn}
                 PollForSourceChanges: false
               RunOrder: 1
@@ -461,7 +462,7 @@ Resources:
                 - Name: TestSourceOutput
               Configuration:
                 BranchName: test
-                RepositoryName: !ImportValue MLOpsRepoName
+                RepositoryName: "Yas2020/mlops-dev-tools"
                 ConnectionArn: !Sub ${CodeStarArn}
                 PollForSourceChanges: false
               RunOrder: 1
