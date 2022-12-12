@@ -334,27 +334,12 @@ Resources:
                 - mkdir unit_test
                 - cp -r ../unit_test/* ./unit_test
                 - |
-                  sh -c """
-                    sam build --build-dir deploy/ \
-                              --use-container \
-                              --manifest requirements.txt \
-                              --template-file ./assets/testDevEndpoint/sam.yaml \
-                              --base-dir assets/
-                    """
+                  sam build --build-dir deploy/ --use-container --manifest requirements.txt --template-file ./assets/testDevEndpoint/sam.yaml --base-dir assets/
             build:
               Commands:
                 - echo Build started on `date`
                 - |
-                  sh -c """
-                  sam deploy  --stack-name ${STACK_NAME} \
-                              --template-file deploy/template.yaml \
-                              --capabilities CAPABILITY_NAMED_IAM \
-                              --image-repository ${CONTAINER_REGISTRY_URI} \
-                              --s3-bucket ${PIPELINE_BUCKET} \
-                              --s3-prefix ${PIPELINE_NAME}/artifacts \
-                              --no-fail-on-empty-changeset \
-                              --no-confirm-changeset
-                  """
+                  sam deploy  --stack-name ${STACK_NAME} --template-file deploy/template.yaml --capabilities CAPABILITY_NAMED_IAM --image-repository ${CONTAINER_REGISTRY_URI} --s3-bucket ${PIPELINE_BUCKET} --s3-prefix ${PIPELINE_NAME}/artifacts --no-fail-on-empty-changeset --no-confirm-changeset
             post_build:
               commands:
                 - echo Build completed on `date`
