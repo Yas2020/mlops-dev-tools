@@ -50,7 +50,7 @@
           "VolumeSizeInGB":30
        }
     },
-    "RoleArn":"arn:aws:iam::<AccountId>:role/MLOps",
+    "RoleArn":"arn:aws:iam::253226449123:role/MLOps",
     "StoppingCondition":{
        "MaxRuntimeInSeconds":86400
     },
