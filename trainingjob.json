@@ -1,9 +1,9 @@
 {
     "AlgorithmSpecification":{
-        "TrainingImage": "<AccountId>.dkr.ecr.<Region>.amazonaws.com/abalone:latest",
+        "TrainingImage": "253226449123.dkr.ecr.ca-central-1.amazonaws.com/abalone:latest",
         "TrainingInputMode": "File"
     },
-    "RoleArn": "arn:aws:iam::<AccountId>:role/MLOps",
+    "RoleArn": "arn:aws:iam::253226449123:role/MLOps",
     "OutputDataConfig": {
         "S3OutputPath": ""
     },
