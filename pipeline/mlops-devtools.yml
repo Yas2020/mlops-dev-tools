@@ -332,7 +332,7 @@ Resources:
                 - pip install --upgrade --force-reinstall botocore boto3 awscli sagemaker aws-sam-cli
                 - cd tests/system_test
                 - mkdir unit_test
-                - cp ../unit_test/* ./unit_test
+                - cp -r ../unit_test/* ./unit_test
                 - |
                   sh -c """
                     sam build --build-dir deploy/ \
