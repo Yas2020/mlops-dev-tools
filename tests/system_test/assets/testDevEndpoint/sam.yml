@@ -25,7 +25,7 @@ Resources:
               - "-"
               - - Fn::ImportValue: MLOpsPipelineName
                 - "dev"
-          TEST_DATA: "input/testing/test.csv"
+          TEST_DATA: "input/data/testing/test.csv"
       CodeUri: testDevEndpoint/
       Tags:
         Name: !ImportValue MLOpsPipelineName
