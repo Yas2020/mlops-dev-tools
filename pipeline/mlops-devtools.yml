@@ -26,11 +26,15 @@ Parameters:
     Description: "Name of pipeline"
     Default: mlops-devtools
 
-  CodeStarArn:
+  CodeStarConnection:
     Type: String
-    Description: "CodeStar Arn for GitHub Connection"
-    Default: arn:aws:codestar-connections:ca-central-1:253226449123:connection/bd250053-a31b-437e-ba66-b5f9eb1c471f
+    Description: "Code Star Connection Arn"
+    Default: arn:aws:codestar-connections:ca-central-1:253226449123:connection/9ef2afdc-ea5e-49ca-b398-24566f265d4b
 
+  GitHubRep:
+    Type: String
+    Description: "Source code github repo"
+    Default: Yas2020/mlops-dev-tools
 
 Resources:
 
@@ -47,7 +51,7 @@ Resources:
       RetentionPolicy: Retain
     Metadata:
       BuildMethod: makefile
-
+  
   CreateModelGroup:
     Type: AWS::Serverless::Function
     Properties:
@@ -71,7 +75,45 @@ Resources:
     Type: Custom::PackageGroup
     Properties:
       ServiceToken: !GetAtt CreateModelGroup.Arn
+    
+  TrainingJobEvaluate:
+    Type: AWS::Serverless::Function
+    Properties: 
+      FunctionName: !Sub ${PipelineName}-training-job-evaluate-${ModelName}
+      Description: "Function to start a new Sagemaker Processing Job to evaluate model"
+      Handler: lambda.handler
+      MemorySize: 128
+      Role: !GetAtt MLOpsRole.Arn
+      Runtime: python3.8
+      Timeout: 60
+      Environment:
+        Variables:
+          PIPELINE_NAME: !Sub ${PipelineName}
+          MODEL_NAME: !Ref ModelName
+          PIPELINE_BUCKET: !ImportValue MLOpsBucket
+      CodeUri: TrainingJobEvaluate/
+      Tags:
+        Name: !Sub ${PipelineName}
 
+  TrainingLaunchJob:
+    Type: AWS::Serverless::Function
+    Properties: 
+      FunctionName: !Sub ${PipelineName}-training-launch-job-${ModelName}
+      Description: "Function to start a new Sagemaker Training Job."
+      Handler: lambda.handler
+      MemorySize: 128
+      Role: !GetAtt MLOpsRole.Arn
+      Runtime: python3.8
+      Timeout: 60
+      Environment:
+        Variables:
+          PIPELINE_NAME: !Sub ${PipelineName}
+          MODEL_NAME: !Ref ModelName
+          PIPELINE_BUCKET: !ImportValue MLOpsBucket
+      CodeUri: TrainingLaunchJob/
+      Tags:
+        Name: !Sub ${PipelineName}
+                                                                                                                                              
   EtlLaunchJob:
     Type: AWS::Serverless::Function
     Properties: 
@@ -92,65 +134,7 @@ Resources:
       CodeUri: EtlLaunchJob/
       Tags:
         Name: !Sub ${PipelineName}
-
-  EtlJobMonitor:
-    Type: AWS::Serverless::Function
-    Properties: 
-      FunctionName: !Sub ${PipelineName}-etl-job-monitor-${ModelName}
-      Description: "Function that will monitor that status of the Glue ETL Job."
-      Handler: lambda.handler
-      MemorySize: 128
-      Role: !GetAtt MLOpsRole.Arn
-      Runtime: python3.8
-      Timeout: 60
-      Environment:
-        Variables:
-          PIPELINE_NAME: !Sub ${PipelineName}
-          MODEL_NAME: !Ref ModelName
-      CodeUri: EtlJobMonitor/
-      Tags:
-        Name: !Sub ${PipelineName}
-
-  EtlJobMonitoringEvent:
-    Type: AWS::Events::Rule
-    Properties: 
-      Description: "Event that will monitor the gluejob and inform codepipeline as it finishes."
-      Name: !Sub etl-job-monitor-${ModelName}
-      ScheduleExpression: cron(0/1 * * * ? *)
-      State: DISABLED
-      Targets:
-        - Arn: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${PipelineName}-etl-job-monitor-${ModelName}
-          Id: !Sub ${PipelineName}-etl-event-${ModelName}
-    DependsOn: EtlJobMonitor
-
-  EtlJobMonitorPermissions:
-    Type: AWS::Lambda::Permission
-    Properties: 
-      Action: lambda:InvokeFunction
-      FunctionName: !Sub ${PipelineName}-etl-job-monitor-${ModelName}
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt EtlJobMonitoringEvent.Arn
-    DependsOn: EtlJobMonitor
-
-  TrainingLaunchJob:
-    Type: AWS::Serverless::Function
-    Properties: 
-      FunctionName: !Sub ${PipelineName}-training-launch-job-${ModelName}
-      Description: "Function to start a new Sagemaker Training Job."
-      Handler: lambda.handler
-      MemorySize: 128
-      Role: !GetAtt MLOpsRole.Arn
-      Runtime: python3.8
-      Timeout: 60
-      Environment:
-        Variables:
-          PIPELINE_NAME: !Sub ${PipelineName}
-          MODEL_NAME: !Ref ModelName
-          PIPELINE_BUCKET: !ImportValue MLOpsBucket
-      CodeUri: TrainingLaunchJob/
-      Tags:
-        Name: !Sub ${PipelineName}
-
+  
   TrainingJobMonitor:
     Type: AWS::Serverless::Function
     Properties: 
@@ -169,34 +153,13 @@ Resources:
       Tags:
         Name: !Sub ${PipelineName}
 
-  TrainingJobMonitoringEvent:
-    Type: AWS::Events::Rule
-    Properties: 
-      Description: "Event that will monitor the training job and inform codepipeline as it finishes."
-      Name: !Sub training-job-monitor-${ModelName}
-      ScheduleExpression: cron(0/1 * * * ? *)
-      State: DISABLED
-      Targets:
-        - Arn: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${PipelineName}-training-job-monitor-${ModelName}
-          Id: !Sub ${PipelineName}-training-event-${ModelName}
-    DependsOn: TrainingJobMonitor
-
-  TrainingJobMonitorPermissions:
-    Type: AWS::Lambda::Permission
-    Properties: 
-      Action: lambda:InvokeFunction
-      FunctionName: !Sub ${PipelineName}-training-job-monitor-${ModelName}
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt TrainingJobMonitoringEvent.Arn
-    DependsOn: TrainingJobMonitor
-
   TrainingModelApproval:
     Type: AWS::Serverless::Function
     Properties: 
       FunctionName: !Sub ${PipelineName}-training-model-approval-${ModelName}
-      Description: "Function that will evaluate the trained model with baseline"
+      Description: "Function that will evaluate the trained bodel with baseline"
       Handler: lambda.handler
-      MemorySize: 128
+      MemorySize: 512
       Role: !GetAtt MLOpsRole.Arn
       Runtime: python3.8
       Timeout: 60
@@ -208,6 +171,33 @@ Resources:
       CodeUri: TrainingModelApproval/
       Tags:
         Name: !Sub ${PipelineName}
+        
+  EtlJobMonitor:
+    Type: AWS::Serverless::Function
+    Properties: 
+      FunctionName: !Sub ${PipelineName}-etl-job-monitor-${ModelName}
+      Description: "Function that will monitor that status of the Glue ETL Job."
+      Handler: lambda.handler
+      MemorySize: 512
+      Role: !GetAtt MLOpsRole.Arn
+      Runtime: python3.8
+      Timeout: 60
+      Environment:
+        Variables:
+          PIPELINE_NAME: !Sub ${PipelineName}
+          MODEL_NAME: !Ref ModelName
+      CodeUri: EtlJobMonitor/
+      Tags:
+        Name: !Sub ${PipelineName}
+  
+  TrainingJobMonitorPermissions:
+    Type: AWS::Lambda::Permission
+    Properties: 
+      Action: lambda:InvokeFunction
+      FunctionName: !Sub ${PipelineName}-training-job-monitor-${ModelName}
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt TrainingJobMonitoringEvent.Arn
+    DependsOn: TrainingJobMonitor
 
   TrainingModelApprovalPermissions:
     Type: AWS::Lambda::Permission
@@ -217,25 +207,51 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !GetAtt TrainingModelApprovalEvent.Arn
     DependsOn: TrainingModelApproval
-
-  TrainingJobEvaluate:
-    Type: AWS::Serverless::Function
+    
+  EtlJobMonitorPermissions:
+    Type: AWS::Lambda::Permission
     Properties: 
-      FunctionName: !Sub ${PipelineName}-training-job-evaluate-${ModelName}
-      Description: "Function to start a new Sagemaker Processing Job to evaluate model"
-      Handler: lambda.handler
-      MemorySize: 128
-      Role: !GetAtt MLOpsRole.Arn
-      Runtime: python3.8
-      Timeout: 60
-      Environment:
-        Variables:
-          PIPELINE_NAME: !Sub ${PipelineName}
-          MODEL_NAME: !Ref ModelName
-          PIPELINE_BUCKET: !ImportValue MLOpsBucket
-      CodeUri: TrainingJobEvaluate/
-      Tags:
-        Name: !Sub ${PipelineName}
+      Action: lambda:InvokeFunction
+      FunctionName: !Sub ${PipelineName}-etl-job-monitor-${ModelName}
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt EtlJobMonitoringEvent.Arn
+    DependsOn: EtlJobMonitor
+  
+  TrainingJobMonitoringEvent:
+    Type: AWS::Events::Rule
+    Properties: 
+      Description: "Event that will monitor the training job and inform codepipeline as it finishes."
+      Name: !Sub training-job-monitor-${ModelName}
+      ScheduleExpression: cron(0/1 * * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${PipelineName}-training-job-monitor-${ModelName}
+          Id: !Sub ${PipelineName}-training-event-${ModelName}
+    DependsOn: TrainingJobMonitor
+    
+  TrainingModelApprovalEvent:
+    Type: AWS::Events::Rule
+    Properties: 
+      Description: "Event that will monitor the processing job, evaluate and inform codepipeline as it finishes."
+      Name: !Sub training-model-approval-${ModelName}
+      ScheduleExpression: cron(0/1 * * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${PipelineName}-training-model-approval-${ModelName}
+          Id: !Sub ${PipelineName}-training-approval-event-${ModelName}
+    DependsOn: TrainingModelApproval
+ 
+  EtlJobMonitoringEvent:
+    Type: AWS::Events::Rule
+    Properties: 
+      Description: "Event that will monitor the gluejob and inform codepipeline as it finishes."
+      Name: !Sub etl-job-monitor-${ModelName}
+      ScheduleExpression: cron(0/1 * * * ? *)
+      State: DISABLED
+      Targets:
+        - Arn: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${PipelineName}-etl-job-monitor-${ModelName}
+          Id: !Sub ${PipelineName}-etl-event-${ModelName}
+    DependsOn: EtlJobMonitor
 
   BuildImageProject:
     Type: AWS::CodeBuild::Project
@@ -420,10 +436,9 @@ Resources:
               OutputArtifacts: 
                 - Name: ModelSourceOutput
               Configuration:
+                ConnectionArn: !Sub ${CodeStarConnection}
                 BranchName: main
-                RepositoryName: "Yas2020/mlops-dev-tools"
-                ConnectionArn: !Sub ${CodeStarArn}
-                PollForSourceChanges: false
+                FullRepositoryId: !Sub ${GitHubRep}
               RunOrder: 1
             - Name: ETLSource
               ActionTypeId:
@@ -434,10 +449,9 @@ Resources:
               OutputArtifacts:
                 - Name: EtlSourceOutput
               Configuration:
+                ConnectionArn: !Sub ${CodeStarConnection}
                 BranchName: etl
-                RepositoryName: "Yas2020/mlops-dev-tools"
-                ConnectionArn: !Sub ${CodeStarArn}
-                PollForSourceChanges: false
+                FullRepositoryId: !Sub ${GitHubRep}
               RunOrder: 1
             - Name: DataSource
               ActionTypeId:
@@ -461,10 +475,9 @@ Resources:
               OutputArtifacts:
                 - Name: TestSourceOutput
               Configuration:
+                ConnectionArn: !Sub ${CodeStarConnection}
                 BranchName: test
-                RepositoryName: "Yas2020/mlops-dev-tools"
-                ConnectionArn: !Sub ${CodeStarArn}
-                PollForSourceChanges: false
+                FullRepositoryId: !Sub ${GitHubRep}
               RunOrder: 1
         - Name: Build
           Actions:
@@ -612,3 +625,192 @@ Resources:
                 FunctionName: !Sub ${PipelineName}-test-dev-endpoint-${ModelName}
                 UserParameters: !Sub mlops-pipeline-${ModelName}
               RunOrder: 3
+
+  MLOpsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "s3.amazonaws.com"
+                - "cloudformation.amazonaws.com"
+                - "events.amazonaws.com"
+                - "glue.amazonaws.com"
+                - "lambda.amazonaws.com"
+                - "sagemaker.amazonaws.com"
+                - "codebuild.amazonaws.com"
+                - "codepipeline.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: "AWSDevToolsPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: "CodeCommitAccess"
+                Effect: "Allow"
+                Action:
+                  - "codecommit:GetBranch"
+                  - "codecommit:GetCommit"
+                  - "codecommit:UploadArchive"
+                  - "codecommit:GetUploadArchiveStatus"
+                  - "codecommit:CancelUploadArchive"
+                Resource:
+                  - !ImportValue MLOpsRepoArn
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Sub ${AWS::Region}
+              - Sid: "UploadImage"
+                Effect: "Allow"
+                Action: "ecr:*"
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Sub ${AWS::Region}
+              - Sid: "ECRAuthorizationToken"
+                Effect: "Allow"
+                Action:
+                  - "ecr:GetAuthorizationToken"
+                Resource: "*"
+              - Sid: "CloudWatchMetrics"
+                Effect: "Allow"
+                Action:
+                  - "cloudwatch:PutMetricData"
+                  - "cloudwatch:GetMetricData"
+                  - "cloudwatch:GetMetricStatistics"
+                  - "cloudwatch:ListMetrics"
+                  - "cloudwatch:PutMetricAlarm"
+                  - "cloudwatch:DeleteAlarms"
+                  - "cloudwatch:DescribeAlarms"
+                Resource: "*"
+              - Sid: "CloudWatchLogs"
+                Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:DescribeLogStreams"
+                  - "logs:PutLogEvents"
+                  - "logs:GetLogEvents"
+                Resource: "*"
+              - Sid: "BucketAccess"
+                Effect: "Allow"
+                Action:
+                  - "s3:*"
+                Resource:
+                  - "arn:aws:s3:::data-*"
+                  - "arn:aws:s3:::data-*/*"
+                  - "arn:aws:s3:::mlops-*"
+                  - "arn:aws:s3:::mlops-*/*"                
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Sub ${AWS::Region}
+              - Sid: "CloudWatchEventsAccess"
+                Effect: "Allow"
+                Action:
+                  - "events:*"
+                Resource: "*"
+              - Sid: "CloudFormationAccess"
+                Effect: "Allow"
+                Action:
+                  - "cloudformation:Create*"
+                  - "cloudformation:Delete*"
+                  - "cloudformation:Describe*"
+                  - "cloudformation:Update*"
+                  - "cloudformation:List*"
+                  - "cloudformation:ExecuteChangeSet"
+                  - "cloudformation:GetTemplateSummary"
+                Resource:
+                  - "arn:aws:cloudformation:*:*:stack/*"
+                  - "arn:aws:cloudformation:*:aws:transform/Serverless-2016-10-31"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Sub ${AWS::Region}
+              - Sid: "CodeBuildImageAccess"
+                Effect: "Allow"
+                Action:
+                  - "codebuild:*"
+                Resource:
+                  - !Sub "arn:aws:codebuild:*:*:project/${PipelineName}-buildimage-${ModelName}"
+                  - !Sub "arn:aws:codebuild:*:*:project/${PipelineName}-build-deployment-${ModelName}"
+                  - !Sub "arn:aws:codebuild:*:*:project/${PipelineName}-build-lambda-image-${ModelName}"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Sub ${AWS::Region}
+              - Sid: "GlueJobResourceAccess"
+                Effect: "Allow"
+                Action:
+                - "glue:*"
+                Resource:
+                - "arn:aws:glue:*:*:job/*"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Sub ${AWS::Region}
+              - Sid: "LambdaResourceAccess"
+                Effect: "Allow"
+                Action:
+                - "lambda:*"
+                Resource:
+                  - !Sub "arn:aws:lambda:*:*:function:${PipelineName}-training-launch-job-${ModelName}"
+                  - !Sub "arn:aws:lambda:*:*:function:${PipelineName}-training-job-monitor-${ModelName}"
+                  - !Sub "arn:aws:lambda:*:*:function:${PipelineName}-etl-launch-job-${ModelName}"
+                  - !Sub "arn:aws:lambda:*:*:function:${PipelineName}-etl-job-monitor-${ModelName}"
+                  - !Sub "arn:aws:lambda:*:*:function:${PipelineName}-training-job-evaluate-${ModelName}"
+                  - !Sub "arn:aws:lambda:*:*:function:${PipelineName}-training-model-approval-${ModelName}"
+                  - !Sub "arn:aws:lambda:*:*:function:${PipelineName}-test-dev-endpoint-${ModelName}"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Sub ${AWS::Region}
+              - Sid: "SageMakerFullAccess"
+                Effect: "Allow"
+                Action:
+                  - "sagemaker:*"
+                Resource: "*"
+              - Sid: "CodePipelineAccess"
+                Action:
+                  - "codepipeline:PutJobFailureResult"
+                  - "codepipeline:PutJobSuccessResult"
+                  - "codepipeline:GetPipelineState"
+                  - "codepipeline:PutApprovalResult"
+                Effect: "Allow"
+                Resource: "*"
+              - Sid: "ConnectionsFullAccess"
+                Action:
+                  - "codestar-connections:*"
+                Effect: "Allow"
+                Resource: "*"
+              - Sid: "MLOpsPassRole"
+                Effect: "Allow"
+                Action:
+                  - "iam:PassRole"
+                Resource:
+                  - !Sub "arn:aws:iam::*:role/${RoleName}"
+
+Outputs:
+  ModelName:
+    Description: Name of the model
+    Value: !Ref ModelName
+    Export:
+      Name: ModelName
+
+  PipelineName:
+    Description: Name of MLOps pipeline
+    Value: !Ref PipelineName
+    Export:
+      Name: MLOpsPipelineName
+      
+  RoleName:
+    Description: Name of Model-Build Pipeline execution role
+    Value: !Ref RoleName
+    Export:
+      Name: MLOpsRoleName
+  
+  RoleNameArn:
+    Description: Name of Model-Build Pipeline execution role
+    Value: !GetAtt MLOpsRole.Arn
+    Export:
+      Name: MLOpsRoleNameArn
