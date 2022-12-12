@@ -279,6 +279,7 @@ Resources:
                 - echo Build started on `date`
                 - echo Logging in to the Amazon Deep Learning Contain Repository ...
                 - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin 763104351884.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+                - cd model
                 - echo Building the Container image...
                 - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
                 - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
@@ -329,6 +330,9 @@ Resources:
                 - printenv
                 - echo Updating Packages ...
                 - pip install --upgrade --force-reinstall botocore boto3 awscli sagemaker aws-sam-cli
+                - cd tests/system_test
+                - mkdir unit_test
+                - cp ../unit_test/* ./unit_test
                 - |
                   sh -c """
                     sam build --build-dir deploy/ \
