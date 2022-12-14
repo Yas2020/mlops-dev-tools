@@ -29,8 +29,8 @@ Resources:
         VariantName: AllTraffic
         InitialVariantWeight: 1.0
         ServerlessConfig:
-          MaxConcurrency: 20
-          MemorySizeInMB: 1024
+          MaxConcurrency: 2
+          MemorySizeInMB: 512
 
   Endpoint:
     Type: AWS::SageMaker::Endpoint
